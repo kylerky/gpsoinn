@@ -386,6 +386,10 @@ multiset<Key, Compare, Allocator>::begin() noexcept {
     iterator iter;
     iter.iter = vector::begin();
     iter.bit_iter = valid_bits.cbegin();
+    while (iter.iter != vector::end() && !*iter.bit_iter) {
+        ++iter.iter;
+        ++iter.bit_iter;
+    }
     iter.vector = this;
     return iter;
 }
@@ -396,6 +400,10 @@ multiset<Key, Compare, Allocator>::begin() const noexcept {
     iterator iter;
     iter.iter = vector::cbegin();
     iter.bit_iter = valid_bits.cbegin();
+    while (iter.iter != vector::cend() && !*iter.bit_iter) {
+        ++iter.iter;
+        ++iter.bit_iter;
+    }
     iter.vector = this;
     return iter;
 }
@@ -406,6 +414,10 @@ multiset<Key, Compare, Allocator>::cbegin() const noexcept {
     const_iterator iter;
     iter.iter = vector::cbegin();
     iter.bit_iter = valid_bits.cbegin();
+    while (iter.iter != vector::cend() && !*iter.bit_iter) {
+        ++iter.iter;
+        ++iter.bit_iter;
+    }
     iter.vector = this;
     return iter;
 }
