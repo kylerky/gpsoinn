@@ -66,6 +66,8 @@ class multiset : protected std::vector<multiset_value_type<Key>, Allocator> {
     /* operators */
     multiset &operator=(const multiset &other);
     multiset &operator=(multiset &&other) noexcept;
+    value_type &operator[](size_type index);
+    const value_type &operator[](size_type index) const;
 
     allocator_type get_allocator() const;
 
@@ -77,6 +79,10 @@ class multiset : protected std::vector<multiset_value_type<Key>, Allocator> {
     const_iterator end() const noexcept;
     const_iterator cend() const noexcept;
 
+    size_type get_index(const_iterator iter) const noexcept;
+    iterator get_iterator(size_type index) noexcept;
+    const_iterator get_iterator(size_type index) const noexcept;
+
   private:
     Compare less;
     size_type count = 0;
@@ -87,7 +93,7 @@ class multiset : protected std::vector<multiset_value_type<Key>, Allocator> {
 } // namespace GPSOINN
 
 namespace GPSOINN {
-    
+
 template <typename Key, typename Compare, typename Allocator>
 class multiset<Key, Compare, Allocator>::iterator {
     friend multiset<Key, Compare, Allocator>;
@@ -152,10 +158,12 @@ class multiset<Key, Compare, Allocator>::const_iterator {
     friend multiset<Key, Compare, Allocator>;
 
   public:
-    friend bool operator==(const const_iterator &lhs, const const_iterator &rhs) {
+    friend bool operator==(const const_iterator &lhs,
+                           const const_iterator &rhs) {
         return lhs.iter == rhs.iter;
     }
-    friend bool operator!=(const const_iterator &lhs, const const_iterator &rhs) {
+    friend bool operator!=(const const_iterator &lhs,
+                           const const_iterator &rhs) {
         return !(lhs == rhs);
     }
     typedef std::ptrdiff_t difference_type;
@@ -165,7 +173,8 @@ class multiset<Key, Compare, Allocator>::const_iterator {
     typedef std::bidirectional_iterator_tag iterator_category;
 
     const_iterator() : vector(nullptr) {}
-    const_iterator(const iterator &other) : iter(other.iter), vector(other.vector), bit_iter(other.bit_iter) {}
+    const_iterator(const iterator &other)
+        : iter(other.iter), vector(other.vector), bit_iter(other.bit_iter) {}
 
     // dereference
     reference operator*() const { return iter->value; }
@@ -273,7 +282,6 @@ multiset<T, Compare, Allocator>::insert(T &&value) {
         // increment count
         ++count;
 
-
         iterator result;
         result.iter = vector::begin() + (vector::size() - 1);
         result.bit_iter = valid_bits.begin() + (vector::size() - 1);
@@ -348,8 +356,7 @@ multiset<Key, Compare, Allocator>::erase(const key_type &key) {
         if (!less(*iter, key) && !less(key, *iter)) {
             iter = erase(iter);
             ++count;
-        }
-        else
+        } else
             ++iter;
     }
     return count;
@@ -484,6 +491,40 @@ operator=(multiset &&other) noexcept {
     first_free = other.first_free;
     return *this;
 }
+template <typename Key, typename Compare, typename Allocator>
+typename multiset<Key, Compare, Allocator>::size_type
+multiset<Key, Compare, Allocator>::get_index(const_iterator iter) const
+    noexcept {
+    return iter.iter - vector::cbegin();
+}
+template <typename Key, typename Compare, typename Allocator>
+typename multiset<Key, Compare, Allocator>::iterator
+multiset<Key, Compare, Allocator>::get_iterator(size_type index) noexcept {
+    iterator iter;
+    iter.iter = vector::begin() + index;
+    iter.bit_iter = valid_bits.cbegin() + index;
+    iter.vector = this;
+    return iter;
+}
+template <typename Key, typename Compare, typename Allocator>
+typename multiset<Key, Compare, Allocator>::const_iterator
+multiset<Key, Compare, Allocator>::get_iterator(size_type index) const
+    noexcept {
+    const_iterator iter;
+    iter.iter = vector::cbegin() + index;
+    iter.bit_iter = valid_bits.cbegin() + index;
+    iter.vector = this;
+    return iter;
+}
+template <typename Key, typename Compare, typename Allocator>
+typename multiset<Key, Compare, Allocator>::value_type &multiset<Key, Compare, Allocator>::operator[](size_type index) {
+    return vector::operator[](index);
+}
+template <typename Key, typename Compare, typename Allocator>
+typename multiset<Key, Compare, Allocator>::value_type const &multiset<Key, Compare, Allocator>::operator[](size_type index) const {
+    return vector::operator[](index);
+}
+
 } // namespace GPSOINN
 
 #endif // GPSOINN_GRAPH_HXX
