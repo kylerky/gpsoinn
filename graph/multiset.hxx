@@ -1,5 +1,5 @@
-#ifndef GPSOINN_GRAPH_HXX
-#define GPSOINN_GRAPH_HXX
+#ifndef GPSOINN_MULTISET_HXX
+#define GPSOINN_MULTISET_HXX
 
 #include <functional>
 #include <iterator>
@@ -26,7 +26,6 @@ class multiset : protected std::vector<multiset_value_type<Key>, Allocator> {
     typedef Compare key_compare;
     typedef Compare value_compare;
     typedef std::vector<multiset_value_type<value_type>, Allocator> vector;
-    typedef std::vector<bool> bit_vector;
 
     typedef typename vector::allocator_type allocator_type;
     typedef typename vector::size_type size_type;
@@ -57,11 +56,16 @@ class multiset : protected std::vector<multiset_value_type<Key>, Allocator> {
     iterator erase(const_iterator beg, const_iterator end);
     size_type erase(const key_type &key);
     // clear
-    void clear() noexcept;
+    void clear() noexcept {
+        vector::clear();
+        valid_bits.clear();
+        first_free = 0;
+        count = 0;
+    };
 
     /* capacity */
-    [[nodiscard]] bool empty() const noexcept;
-    size_type size() const noexcept;
+    [[nodiscard]] bool empty() const noexcept { return count == 0; }
+    size_type size() const noexcept { return count; };
 
     /* operators */
     multiset &operator=(const multiset &other);
@@ -69,7 +73,7 @@ class multiset : protected std::vector<multiset_value_type<Key>, Allocator> {
     value_type &operator[](size_type index);
     const value_type &operator[](size_type index) const;
 
-    allocator_type get_allocator() const;
+    allocator_type get_allocator() const { return vector::get_allocator(); };
 
     // iterators
     iterator begin() noexcept;
@@ -84,6 +88,7 @@ class multiset : protected std::vector<multiset_value_type<Key>, Allocator> {
     const_iterator get_iterator(size_type index) const noexcept;
 
   private:
+    typedef std::vector<bool> bit_vector;
     Compare less;
     size_type count = 0;
     size_type first_free = 0;
@@ -363,31 +368,6 @@ multiset<Key, Compare, Allocator>::erase(const key_type &key) {
 }
 
 template <typename Key, typename Compare, typename Allocator>
-void multiset<Key, Compare, Allocator>::clear() noexcept {
-    vector::clear();
-    valid_bits.clear();
-    first_free = 0;
-    count = 0;
-}
-
-template <typename Key, typename Compare, typename Allocator>
-bool multiset<Key, Compare, Allocator>::empty() const noexcept {
-    return count == 0;
-}
-
-template <typename Key, typename Compare, typename Allocator>
-typename multiset<Key, Compare, Allocator>::size_type
-multiset<Key, Compare, Allocator>::size() const noexcept {
-    return count;
-}
-
-template <typename Key, typename Compare, typename Allocator>
-typename multiset<Key, Compare, Allocator>::allocator_type
-multiset<Key, Compare, Allocator>::get_allocator() const {
-    return vector::get_allocator();
-}
-
-template <typename Key, typename Compare, typename Allocator>
 typename multiset<Key, Compare, Allocator>::iterator
 multiset<Key, Compare, Allocator>::begin() noexcept {
     iterator iter;
@@ -517,14 +497,16 @@ multiset<Key, Compare, Allocator>::get_iterator(size_type index) const
     return iter;
 }
 template <typename Key, typename Compare, typename Allocator>
-typename multiset<Key, Compare, Allocator>::value_type &multiset<Key, Compare, Allocator>::operator[](size_type index) {
+typename multiset<Key, Compare, Allocator>::value_type &
+    multiset<Key, Compare, Allocator>::operator[](size_type index) {
     return vector::operator[](index);
 }
 template <typename Key, typename Compare, typename Allocator>
-typename multiset<Key, Compare, Allocator>::value_type const &multiset<Key, Compare, Allocator>::operator[](size_type index) const {
+typename multiset<Key, Compare, Allocator>::value_type const &
+    multiset<Key, Compare, Allocator>::operator[](size_type index) const {
     return vector::operator[](index);
 }
 
 } // namespace GPSOINN
 
-#endif // GPSOINN_GRAPH_HXX
+#endif // GPSOINN_MULTISET_HXX
