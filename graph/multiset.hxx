@@ -31,16 +31,15 @@ template <typename T, typename T_2> struct multiset_variant {
 
     inline void copy(const data_t *other) {
         if (bit)
-            new (&data) T(*reinterpret_cast<const T *>(other));
-        else
             new (&data) T_2(*reinterpret_cast<const T_2 *>(other));
+        else
+            new (&data) T(*reinterpret_cast<const T *>(other));
     }
     inline void move(const data_t *other) {
         if (bit)
-            new (&data) T(std::move(*reinterpret_cast<const T *>(other)));
+            new (&data) T_2(std::move(*reinterpret_cast<const T_2 *>(other)));
         else
-            new (&data)
-                T_2(std::move(*reinterpret_cast<const T_2 *>(other)));
+            new (&data) T(std::move(*reinterpret_cast<const T *>(other)));
     }
     inline void destroy() {
         if (bit)
