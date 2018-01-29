@@ -159,6 +159,26 @@ class Digraph {
         return vertices.get_iterator(tail_pos);
     }
 };
+template <typename ValueT, typename WeightT,
+          typename Compare = std::less<ValueT>>
+class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare> {
+  private:
+    using Digraph = Digraph<ValueT, WeightT, Compare>;
+
+  public:
+    typedef typename Digraph::EdgeNode EdgeNode;
+    typedef typename Digraph::Vertex Vertex;
+    typedef typename Digraph::vertex_iterator vertex_iterator;
+    typedef typename Digraph::const_vertex_iterator const_vertex_iterator;
+    typedef typename Digraph::edge_iterator edge_iterator;
+    typedef typename Digraph::const_edge_iterator const_edge_iterator;
+    typedef ValueT value_type;
+    typedef value_type &reference;
+    typedef const value_type &const_reference;
+    typedef WeightT weight_type;
+    typedef Compare value_compare;
+    typedef typename Digraph::index_t index_t;
+};
 
 } // namespace GPSOINN
 
@@ -172,8 +192,7 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const_vertex_iterator pos) {
     auto result = vertices.erase(iter);
     for (auto &vertex : vertices) {
         auto pre = vertex.edges.cbefore_begin();
-        for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();
-             ++edge) {
+        for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();) {
             if (edge->head == index) {
                 edge = vertex.edges.erase_after(pre);
                 --edge_cnt;
@@ -199,8 +218,7 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const_vertex_iterator beg,
     auto result = vertices.erase(beg_iter, end_iter);
     for (auto &vertex : vertices) {
         auto pre = vertex.edges.cbefore_begin();
-        for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();
-             ++edge) {
+        for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();) {
             if (indices.count(edge->head) == 1) {
                 edge = vertex.edges.erase_after(pre);
                 --edge_cnt;
@@ -217,7 +235,7 @@ typename Digraph<ValueT, WeightT, Compare>::size_type
 Digraph<ValueT, WeightT, Compare>::erase_vertex(const ValueT &key) {
     std::unordered_set<index_t> indices;
     for (auto iter = vertices.cbegin(); iter != vertices.cend(); ++iter) {
-        if (iter->value == key)
+        if (iter->value() == key)
             indices.insert(vertices.get_index(iter));
     }
 
@@ -226,8 +244,7 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const ValueT &key) {
 
     for (auto &vertex : vertices) {
         auto pre = vertex.edges.cbefore_begin();
-        for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();
-             ++edge) {
+        for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();) {
             if (indices.count(edge->head) == 1)
                 edge = vertex.edges.erase_after(pre);
             else {
