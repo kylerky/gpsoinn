@@ -21,58 +21,54 @@ class Digraph {
         swap(left.edge_cnt, right.edge_cnt);
     }
 
-  protected:
     struct EdgeNode {
         WeightT weight;
         index_t head;
     };
-    struct VertexNode {
-        ValueT value;
-        std::forward_list<EdgeNode> edges;
-    };
-    typedef multiset<VertexNode, Compare> set_type;
-
-  public:
     typedef typename std::forward_list<EdgeNode>::iterator edge_iterator;
     typedef typename std::forward_list<EdgeNode>::const_iterator
         const_edge_iterator;
+    class Vertex {
+        friend Digraph;
+
+      public:
+        edge_iterator begin() noexcept { return edges.begin(); }
+
+        const_edge_iterator begin() const noexcept { return edges.cbegin(); }
+
+        const_edge_iterator cbegin() const noexcept { return edges.cbegin(); }
+        edge_iterator end() noexcept { return edges.end(); }
+
+        const_edge_iterator end() const noexcept { return edges.cend(); }
+
+        const_edge_iterator cend() const noexcept { return edges.cend(); }
+        edge_iterator before_begin() noexcept { return edges.before_begin(); }
+
+        const_edge_iterator before_begin() const noexcept {
+            return edges.cbefore_begin();
+        }
+
+        const_edge_iterator cbefore_begin() const noexcept {
+            return edges.cbefore_begin();
+        }
+
+        ValueT &value() { return val; }
+        const ValueT &value() const { return val; }
+
+      private:
+        ValueT val;
+        std::forward_list<EdgeNode> edges;
+    };
+    typedef multiset<Vertex, Compare> set_type;
+
     typedef typename multiset<ValueT, Compare>::size_type size_type;
     typedef ValueT value_type;
     typedef value_type &reference;
     typedef const value_type &const_reference;
     typedef WeightT weight_type;
     typedef Compare value_compare;
-
-    class vertex_iterator : public set_type::iterator {
-      public:
-        vertex_iterator(typename set_type::iterator const &other)
-            : set_type::iterator(other) {}
-        vertex_iterator(typename set_type::iterator &&other)
-            : set_type::iterator(other) {}
-        typedef ValueT &reference;
-        typedef ValueT *pointer;
-        reference operator*() const {
-            return set_type::iterator::operator*().value;
-        }
-        pointer operator->() const {
-            return &set_type::iterator::operator*().value;
-        }
-    };
-    class const_vertex_iterator : public set_type::const_iterator {
-      public:
-        const_vertex_iterator(typename set_type::const_iterator const &other)
-            : set_type::const_iterator(other) {}
-        const_vertex_iterator(typename set_type::const_iterator &&other)
-            : set_type::const_iterator(other) {}
-        typedef const ValueT &reference;
-        typedef const ValueT *pointer;
-        reference operator*() const {
-            return set_type::const_iterator::operator*().value;
-        }
-        pointer operator->() const {
-            return &set_type::const_iterator::operator*().value;
-        }
-    };
+    typedef typename set_type::iterator vertex_iterator;
+    typedef typename set_type::const_iterator const_vertex_iterator;
 
     // constructors
     Digraph() : Digraph(Compare()) {}
@@ -92,12 +88,12 @@ class Digraph {
 
     // vertex related modifiers
     vertex_iterator insert_vertex(const ValueT &value) {
-        VertexNode vertex;
-        vertex.value = value;
+        Vertex vertex;
+        vertex.val = value;
         return vertices.insert(vertex);
     }
     vertex_iterator insert_vertex(ValueT &&value) {
-        VertexNode vertex;
+        Vertex vertex;
         vertex.value = value;
         return vertices.insert(std::move(vertex));
     }
@@ -109,8 +105,10 @@ class Digraph {
     // edge related modifiers
     void insert_edge(const_vertex_iterator tail, const_vertex_iterator head,
                      const WeightT &weight); // tail -> head
-    void insert_edge(const_vertex_iterator tail, const_vertex_iterator head,
-                     WeightT &&weight);
+    void insert_edge(index_t tail, index_t head, const WeightT &weight) {
+        insert_edge(get_vertex_iterator(tail), get_vertex_iterator(head),
+                    weight);
+    }
     edge_iterator erase_after_edge(const_vertex_iterator tail,
                                    const_edge_iterator edge);
     edge_iterator
@@ -125,22 +123,25 @@ class Digraph {
     vertex_iterator end() noexcept { return vertices.end(); }
     const_vertex_iterator end() const noexcept { return vertices.cend(); }
     const_vertex_iterator cend() const noexcept { return vertices.cend(); }
-    // edge related
-    edge_iterator edge_begin(const_vertex_iterator vertex) noexcept;
-    const_edge_iterator edge_begin(const_vertex_iterator vertex) const noexcept;
-    const_edge_iterator cedge_begin(const_vertex_iterator vertex) const
-        noexcept;
-    edge_iterator edge_end(const_vertex_iterator vertex) noexcept;
-    const_edge_iterator edge_end(const_vertex_iterator vertex) const noexcept;
-    const_edge_iterator cedge_end(const_vertex_iterator vertex) const noexcept;
-    edge_iterator edge_before_begin(const_vertex_iterator vertex) noexcept;
-    const_edge_iterator edge_before_begin(const_vertex_iterator vertex) const
-        noexcept;
-    const_edge_iterator cedge_before_begin(const_vertex_iterator vertex) const
-        noexcept;
+
+    // index related
+    index_t get_index(const_vertex_iterator vertex) const noexcept {
+        typename set_type::const_iterator &ver_iter = vertex;
+        return vertices.get_index(ver_iter);
+    }
+    vertex_iterator get_vertex_iterator(index_t index) {
+        return vertices.get_iterator(index);
+    }
+    const_vertex_iterator get_vertex_iterator(index_t index) const {
+        return vertices.get_iterator(index);
+    }
+    value_type operator[](index_t index) { return *get_vertex_iterator(index); }
 
     //
-    void clear() noexcept;
+    void clear() noexcept {
+        vertices.clear();
+        edge_cnt = 0;
+    }
 
     /* capacity */
     size_type vertex_count() const noexcept { return vertices.size(); }
@@ -150,6 +151,13 @@ class Digraph {
   protected:
     set_type vertices;
     size_type edge_cnt;
+
+  private:
+    inline typename set_type::iterator
+    iter_remove_c(typename set_type::const_iterator citer) {
+        index_t tail_pos = vertices.get_index(citer);
+        return vertices.get_iterator(tail_pos);
+    }
 };
 
 } // namespace GPSOINN
@@ -235,20 +243,12 @@ template <typename ValueT, typename WeightT, typename Compare>
 void Digraph<ValueT, WeightT, Compare>::insert_edge(const_vertex_iterator tail,
                                                     const_vertex_iterator head,
                                                     const WeightT &weight) {
-    typename set_type::const_iterator &tail_iter = tail;
+    typename set_type::const_iterator &ctail_iter = tail;
     typename set_type::const_iterator &head_iter = head;
+    auto tail_iter = iter_remove_c(ctail_iter);
+
     tail_iter->edges.push_front(
         {.weight = weight, .head = vertices.get_index(head_iter)});
-    ++edge_cnt;
-}
-template <typename ValueT, typename WeightT, typename Compare>
-void Digraph<ValueT, WeightT, Compare>::insert_edge(const_vertex_iterator tail,
-                                                    const_vertex_iterator head,
-                                                    WeightT &&weight) {
-    typename set_type::const_iterator &tail_iter = tail;
-    typename set_type::const_iterator &head_iter = head;
-    tail_iter->edges.push_front(
-        std::move({.weight = weight, .head = vertices.get_index(head_iter)}));
     ++edge_cnt;
 }
 
@@ -256,7 +256,9 @@ template <typename ValueT, typename WeightT, typename Compare>
 typename Digraph<ValueT, WeightT, Compare>::edge_iterator
 Digraph<ValueT, WeightT, Compare>::erase_after_edge(const_vertex_iterator tail,
                                                     const_edge_iterator edge) {
-    typename set_type::const_iterator &tail_iter = tail;
+    typename set_type::const_iterator &ctail_iter = tail;
+    auto tail_iter = iter_remove_c(ctail_iter);
+
     auto result = tail_iter->edges.erase_after(edge);
     --edge_cnt;
     return result;
@@ -266,85 +268,13 @@ typename Digraph<ValueT, WeightT, Compare>::edge_iterator
 Digraph<ValueT, WeightT, Compare>::erase_after_edge(const_vertex_iterator tail,
                                                     const_edge_iterator beg,
                                                     const_edge_iterator end) {
-    typename set_type::const_iterator &tail_iter = tail;
+    typename set_type::const_iterator &ctail_iter = tail;
+    auto tail_iter = iter_remove_c(ctail_iter);
+
+    auto before_count = vertices.size();
     auto result = tail_iter->edges.erase_after(beg, end);
-    --edge_cnt;
+    edge_cnt -= before_count - vertices.size();
     return result;
-}
-
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::edge_iterator
-Digraph<ValueT, WeightT, Compare>::edge_begin(
-    const_vertex_iterator vertex) noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.begin();
-}
-
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::const_edge_iterator
-Digraph<ValueT, WeightT, Compare>::edge_begin(
-    const_vertex_iterator vertex) const noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.cbegin();
-}
-
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::const_edge_iterator
-Digraph<ValueT, WeightT, Compare>::cedge_begin(
-    const_vertex_iterator vertex) const noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.cbegin();
-}
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::edge_iterator
-Digraph<ValueT, WeightT, Compare>::edge_end(
-    const_vertex_iterator vertex) noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.end();
-}
-
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::const_edge_iterator
-Digraph<ValueT, WeightT, Compare>::edge_end(const_vertex_iterator vertex) const
-    noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.cend();
-}
-
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::const_edge_iterator
-Digraph<ValueT, WeightT, Compare>::cedge_end(const_vertex_iterator vertex) const
-    noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.cend();
-}
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::edge_iterator
-Digraph<ValueT, WeightT, Compare>::edge_before_begin(
-    const_vertex_iterator vertex) noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.before_begin();
-}
-
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::const_edge_iterator
-Digraph<ValueT, WeightT, Compare>::edge_before_begin(
-    const_vertex_iterator vertex) const noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.cbefore_begin();
-}
-
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::const_edge_iterator
-Digraph<ValueT, WeightT, Compare>::cedge_before_begin(
-    const_vertex_iterator vertex) const noexcept {
-    typename set_type::const_iterator &ver_iter = vertex;
-    return ver_iter.edges.cbefore_begin();
-}
-template <typename ValueT, typename WeightT, typename Compare>
-void Digraph<ValueT, WeightT, Compare>::clear() noexcept {
-    vertices.clear();
-    edge_cnt = 0;
 }
 
 } // namespace GPSOINN
