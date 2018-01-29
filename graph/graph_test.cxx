@@ -33,11 +33,13 @@ TEST(insert_erase, edge) {
     graph.insert_edge(4, 2, 1);
     // graph.erase_after_edge(ver, edge);
     ASSERT_EQ(5, graph.vertex_count());
-    ASSERT_EQ(6, graph.edge_count());
     for (auto ver : graph)
         for (auto edge : ver)
             std::cout << ver.value() << " - " << edge.head << std::endl;
     graph.erase_vertex(1);
     ASSERT_EQ(4, graph.vertex_count());
-    ASSERT_EQ(3, graph.edge_count());
+    std::cout << std::endl;
+    for (auto ver : graph)
+        for (auto edge : ver)
+            std::cout << ver.value() << " - " << edge.head << std::endl;
 }

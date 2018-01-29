@@ -18,7 +18,6 @@ class Digraph {
     friend void swap(Digraph &left, Digraph &right) noexcept {
         using std::swap;
         swap(left.vertices, right.vertices);
-        swap(left.edge_cnt, right.edge_cnt);
     }
 
     struct EdgeNode {
@@ -72,7 +71,7 @@ class Digraph {
 
     // constructors
     Digraph() : Digraph(Compare()) {}
-    explicit Digraph(const Compare &comp) : vertices(comp), edge_cnt(0) {}
+    explicit Digraph(const Compare &comp) : vertices(comp) {}
     // copy constructors
     Digraph(const Digraph &other) = default;
     Digraph(Digraph &&other) = default;
@@ -140,17 +139,14 @@ class Digraph {
     //
     void clear() noexcept {
         vertices.clear();
-        edge_cnt = 0;
     }
 
     /* capacity */
     size_type vertex_count() const noexcept { return vertices.size(); }
     [[nodiscard]] bool empty() const noexcept { return vertex_count() == 0; }
-    size_type edge_count() const noexcept { return edge_cnt; }
 
   protected:
     set_type vertices;
-    size_type edge_cnt;
 
   private:
     inline typename set_type::iterator
@@ -195,7 +191,6 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const_vertex_iterator pos) {
         for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();) {
             if (edge->head == index) {
                 edge = vertex.edges.erase_after(pre);
-                --edge_cnt;
             } else {
                 ++edge;
                 ++pre;
@@ -221,7 +216,6 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const_vertex_iterator beg,
         for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();) {
             if (indices.count(edge->head) == 1) {
                 edge = vertex.edges.erase_after(pre);
-                --edge_cnt;
             } else {
                 ++edge;
                 ++pre;
@@ -242,18 +236,19 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const ValueT &key) {
     for (auto index : indices)
         vertices.erase(vertices.get_iterator(index));
 
+
     for (auto &vertex : vertices) {
         auto pre = vertex.edges.cbefore_begin();
         for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();) {
-            if (indices.count(edge->head) == 1)
+            if (indices.count(edge->head) == 1) {
                 edge = vertex.edges.erase_after(pre);
+            }
             else {
                 ++edge;
                 ++pre;
             }
         }
     }
-    edge_cnt -= indices.size();
     return indices.size();
 }
 template <typename ValueT, typename WeightT, typename Compare>
@@ -266,7 +261,6 @@ void Digraph<ValueT, WeightT, Compare>::insert_edge(const_vertex_iterator tail,
 
     tail_iter->edges.push_front(
         {.weight = weight, .head = vertices.get_index(head_iter)});
-    ++edge_cnt;
 }
 
 template <typename ValueT, typename WeightT, typename Compare>
@@ -277,7 +271,6 @@ Digraph<ValueT, WeightT, Compare>::erase_after_edge(const_vertex_iterator tail,
     auto tail_iter = iter_remove_c(ctail_iter);
 
     auto result = tail_iter->edges.erase_after(edge);
-    --edge_cnt;
     return result;
 }
 template <typename ValueT, typename WeightT, typename Compare>
@@ -290,7 +283,6 @@ Digraph<ValueT, WeightT, Compare>::erase_after_edge(const_vertex_iterator tail,
 
     auto before_count = vertices.size();
     auto result = tail_iter->edges.erase_after(beg, end);
-    edge_cnt -= before_count - vertices.size();
     return result;
 }
 
