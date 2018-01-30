@@ -2,6 +2,7 @@
 #define GPSOINN_GRAPH_HXX
 
 #include "multiset.hxx"
+#include <algorithm>
 #include <forward_list>
 #include <functional>
 #include <unordered_set>
@@ -20,6 +21,7 @@ class Digraph {
         swap(left.vertices, right.vertices);
     }
 
+    // edge node
     struct EdgeNode {
         WeightT weight;
         index_t head;
@@ -27,6 +29,8 @@ class Digraph {
     typedef typename std::forward_list<EdgeNode>::iterator edge_iterator;
     typedef typename std::forward_list<EdgeNode>::const_iterator
         const_edge_iterator;
+
+    // class Vertex
     class Vertex {
         friend Digraph;
 
@@ -58,6 +62,8 @@ class Digraph {
         ValueT val;
         std::forward_list<EdgeNode> edges;
     };
+
+    // loads of typedefs
     typedef multiset<Vertex, Compare> set_type;
 
     typedef typename multiset<ValueT, Compare>::size_type size_type;
@@ -93,7 +99,7 @@ class Digraph {
     }
     vertex_iterator insert_vertex(ValueT &&value) {
         Vertex vertex;
-        vertex.value = value;
+        vertex.val = value;
         return vertices.insert(std::move(vertex));
     }
     vertex_iterator erase_vertex(const_vertex_iterator pos);
@@ -103,8 +109,8 @@ class Digraph {
 
     // edge related modifiers
     void insert_edge(const_vertex_iterator tail, const_vertex_iterator head,
-                     const WeightT &weight); // tail -> head
-    void insert_edge(index_t tail, index_t head, const WeightT &weight) {
+                     const WeightT &weight = 1); // tail -> head
+    void insert_edge(index_t tail, index_t head, const WeightT &weight = 1) {
         insert_edge(get_vertex_iterator(tail), get_vertex_iterator(head),
                     weight);
     }
@@ -137,9 +143,7 @@ class Digraph {
     value_type operator[](index_t index) { return *get_vertex_iterator(index); }
 
     //
-    void clear() noexcept {
-        vertices.clear();
-    }
+    void clear() noexcept { vertices.clear(); }
 
     /* capacity */
     size_type vertex_count() const noexcept { return vertices.size(); }
@@ -174,6 +178,85 @@ class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare> {
     typedef WeightT weight_type;
     typedef Compare value_compare;
     typedef typename Digraph::index_t index_t;
+    typedef typename Digraph::size_type size_type;
+
+    // constructors
+    UndirectedGraph() : UndirectedGraph(Compare()) {}
+    explicit UndirectedGraph(const Compare &comp) : Digraph(comp) {}
+    UndirectedGraph(const UndirectedGraph &other) = default;
+    UndirectedGraph(UndirectedGraph &&other) = default;
+
+    // destructors
+    ~UndirectedGraph() {}
+
+    // swap
+    friend void swap(UndirectedGraph &left, UndirectedGraph &right) noexcept {
+        using std::swap;
+        Digraph &left_base = left;
+        Digraph &right_base = right;
+        swap(left_base, right_base);
+    }
+
+    // operator=
+    UndirectedGraph &operator=(UndirectedGraph other) {
+        std::swap(*this, other);
+        return *this;
+    }
+
+    // vertex realted modifiers
+    template <typename Type> vertex_iterator insert_vertex(Type &&value) {
+        return Digraph::insert_vertex(std::forward<Type>(value));
+    }
+    vertex_iterator erase_vertex(const_vertex_iterator pos) {
+        return Digraph::erase_vertex(pos);
+    }
+    vertex_iterator erase_vertex(const_vertex_iterator beg,
+                                 const_vertex_iterator end) {
+        return Digraph::erase_vertex(beg, end);
+    }
+    size_type erase_vertex(const ValueT &key) {
+        return Digraph::erase_vertex(key);
+    }
+
+    // edge related modifiers
+    void insert_edge(const_vertex_iterator v1, const_vertex_iterator v2,
+                     const WeightT &weight = 1) {
+        Digraph::insert_edge(v1, v2, weight);
+        Digraph::insert_edge(v2, v1, weight);
+    }
+    void insert_edge(index_t v1, index_t v2, const WeightT &weight = 1) {
+        Digraph::insert_edge(v1, v2, weight);
+        Digraph::insert_edge(v2, v1, weight);
+    }
+    edge_iterator erase_after_edge(const_vertex_iterator v1,
+                                   const_edge_iterator edge);
+
+    // iterator related
+    vertex_iterator begin() noexcept { return Digraph::begin(); }
+    const_vertex_iterator begin() const noexcept { return Digraph::cbegin(); }
+    const_vertex_iterator cbegin() const noexcept { return Digraph::cbegin(); }
+    vertex_iterator end() noexcept { return Digraph::end(); }
+    const_vertex_iterator end() const noexcept { return Digraph::cend(); }
+    const_vertex_iterator cend() const noexcept { return Digraph::cend(); }
+
+    // index related
+    index_t get_index(const_vertex_iterator vertex) const noexcept {
+        return Digraph::get_index(vertex);
+    }
+    vertex_iterator get_vertex_iterator(index_t index) {
+        return Digraph::get_vertex_iterator(index);
+    }
+    const_vertex_iterator get_vertex_iterator(index_t index) const {
+        return Digraph::get_vertex_iterator(index);
+    }
+    value_type operator[](index_t index) { return Digraph::operator[](index); }
+
+    //
+    void clear() noexcept { Digraph::clear(); }
+
+    /* capacity */
+    size_type vertex_count() const noexcept { return Digraph::vertex_count(); }
+    [[nodiscard]] bool empty() const noexcept { return Digraph::empty(); }
 };
 
 } // namespace GPSOINN
@@ -236,14 +319,12 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const ValueT &key) {
     for (auto index : indices)
         vertices.erase(vertices.get_iterator(index));
 
-
     for (auto &vertex : vertices) {
         auto pre = vertex.edges.cbefore_begin();
         for (auto edge = vertex.edges.cbegin(); edge != vertex.edges.cend();) {
             if (indices.count(edge->head) == 1) {
                 edge = vertex.edges.erase_after(pre);
-            }
-            else {
+            } else {
                 ++edge;
                 ++pre;
             }
@@ -283,6 +364,28 @@ Digraph<ValueT, WeightT, Compare>::erase_after_edge(const_vertex_iterator tail,
 
     auto before_count = vertices.size();
     auto result = tail_iter->edges.erase_after(beg, end);
+    return result;
+}
+
+template <typename ValueT, typename WeightT, typename Compare>
+typename UndirectedGraph<ValueT, WeightT, Compare>::edge_iterator
+UndirectedGraph<ValueT, WeightT, Compare>::erase_after_edge(
+    const_vertex_iterator v1, const_edge_iterator edge) {
+    auto target = edge;
+    ++target;
+
+    auto result = Digraph::erase_after_edge(v1, edge);
+    auto v2 = get_vertex_iterator(target->head);
+    if (v1 != v2) {
+        index_t index = get_index(v1);
+        for (auto iter = v2->cbegin(), pre = v2->cbefore_begin();
+             iter != v2->cend(); ++iter, ++pre) {
+            if (iter->head == index && iter->weight == target->weight) {
+                Digraph::erase_after_edge(v2, pre);
+                break;
+            }
+        }
+    }
     return result;
 }
 
