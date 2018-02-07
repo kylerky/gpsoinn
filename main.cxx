@@ -5,7 +5,7 @@
 
 int main() {
     using GPSOINN::GPNet;
-    GPNet<1> net(250, 50, 1, 0.0001);
+    GPNet<1> net(250, 50, 1, 1e-6);
 
     std::random_device dev;
     std::default_random_engine generator(dev());
@@ -19,21 +19,22 @@ int main() {
         net.train(arr);
         // std::cout << net.predict(arr) << std::endl;
     }
-    for (float f = -6.0; f <= 6.0; f += 0.4) {
+    for (float f = -6.0; f <= 6.0; f += 0.1) {
+        std::cout << f << ",";
+    }
+    std::cout << "\n\n" << std::endl;
+    for (float f = -6.0; f <= 6.0; f += 0.1) {
         std::array<float, 1> arr;
         arr[0] = f;
-        std::cout << f << "\t" << net.predict(arr) << "\t"
-                  << std::exp(-(f - mean) * (f - mean) / 2 / stddev / stddev) /
-                         std::sqrt(2 * M_PI) / stddev
-                  << std::endl;
+        std::cout << net.predict(arr) << ",";
     }
-    // for (float f = -6.0; f <= 6.0; f += 0.4) {
-    //     std::cout << f << "\t"
-    //               << std::exp(-(f - mean) * (f - mean) / 2 / stddev / stddev)
-    //               /
-    //                      std::sqrt(2 * M_PI) / stddev
-    //               << std::endl;
-    // }
+    std::cout << "\n\n" << std::endl;
+    for (float f = -6.0; f <= 6.0; f += 0.1) {
+        std::cout << std::exp(-(f - mean) * (f - mean) / 2 / stddev / stddev) /
+                         std::sqrt(2 * M_PI) / stddev
+                  << ",";
+    }
+    std::cout << std::endl;
 
     return 0;
 }
