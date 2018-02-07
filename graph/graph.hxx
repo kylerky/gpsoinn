@@ -11,7 +11,8 @@
 namespace GPSOINN {
 
 template <typename ValueT, typename WeightT,
-          typename Compare = std::less<ValueT>>
+          typename Compare = std::less<ValueT>,
+          typename Allocator = std::allocator<ValueT>>
 class Digraph {
   public:
     typedef typename multiset<ValueT, Compare>::size_type index_t;
@@ -64,7 +65,7 @@ class Digraph {
     };
 
     // loads of typedefs
-    typedef multiset<Vertex, Compare> set_type;
+    typedef multiset<Vertex, Compare, Allocator> set_type;
 
     typedef typename multiset<ValueT, Compare>::size_type size_type;
     typedef ValueT value_type;
@@ -77,7 +78,8 @@ class Digraph {
 
     // constructors
     Digraph() : Digraph(Compare()) {}
-    explicit Digraph(const Compare &comp) : vertices(comp) {}
+    explicit Digraph(const Compare &comp, const Allocator &alloc = Allocator())
+        : vertices(comp, alloc) {}
     // copy constructors
     Digraph(const Digraph &other) = default;
     Digraph(Digraph &&other) = default;
@@ -110,7 +112,7 @@ class Digraph {
     // edge related modifiers
     void insert_edge(const_vertex_iterator tail, const_vertex_iterator head,
                      const WeightT &weight = 1); // tail -> head
-    void insert_edge(index_t tail, index_t head, const WeightT &weight = 1) {
+    void insert_edge(index_t tail, index_t head, const WeightT &weight = 0) {
         insert_edge(get_vertex_iterator(tail), get_vertex_iterator(head),
                     weight);
     }
@@ -140,7 +142,10 @@ class Digraph {
     const_vertex_iterator get_vertex_iterator(index_t index) const {
         return vertices.get_iterator(index);
     }
-    value_type operator[](index_t index) { return *get_vertex_iterator(index); }
+    Vertex &operator[](index_t index) { return *get_vertex_iterator(index); }
+    const Vertex &operator[](index_t index) const {
+        return *get_vertex_iterator(index);
+    }
 
     //
     void clear() noexcept { vertices.clear(); }
@@ -160,10 +165,11 @@ class Digraph {
     }
 };
 template <typename ValueT, typename WeightT,
-          typename Compare = std::less<ValueT>>
-class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare> {
+          typename Compare = std::less<ValueT>,
+          typename Allocator = std::allocator<ValueT>>
+class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare, Allocator> {
   private:
-    using Digraph = Digraph<ValueT, WeightT, Compare>;
+    using Digraph = Digraph<ValueT, WeightT, Compare, Allocator>;
 
   public:
     typedef typename Digraph::EdgeNode EdgeNode;
@@ -220,7 +226,7 @@ class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare> {
 
     // edge related modifiers
     void insert_edge(const_vertex_iterator v1, const_vertex_iterator v2,
-                     const WeightT &weight = 1) {
+                     const WeightT &weight = 0) {
         Digraph::insert_edge(v1, v2, weight);
         Digraph::insert_edge(v2, v1, weight);
     }
@@ -249,7 +255,12 @@ class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare> {
     const_vertex_iterator get_vertex_iterator(index_t index) const {
         return Digraph::get_vertex_iterator(index);
     }
-    value_type operator[](index_t index) { return Digraph::operator[](index); }
+    typename Digraph::Vertex &operator[](index_t index) {
+        return Digraph::operator[](index);
+    }
+    typename Digraph::Vertex const &operator[](index_t index) const {
+        return Digraph::operator[](index);
+    }
 
     //
     void clear() noexcept { Digraph::clear(); }
@@ -263,9 +274,11 @@ class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare> {
 
 namespace GPSOINN {
 
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::vertex_iterator
-Digraph<ValueT, WeightT, Compare>::erase_vertex(const_vertex_iterator pos) {
+template <typename ValueT, typename WeightT, typename Compare,
+          typename Allocator>
+typename Digraph<ValueT, WeightT, Compare, Allocator>::vertex_iterator
+Digraph<ValueT, WeightT, Compare, Allocator>::erase_vertex(
+    const_vertex_iterator pos) {
     typename set_type::const_iterator &iter = pos;
     auto index = vertices.get_index(iter);
     auto result = vertices.erase(iter);
@@ -283,10 +296,11 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const_vertex_iterator pos) {
     return result;
 }
 
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::vertex_iterator
-Digraph<ValueT, WeightT, Compare>::erase_vertex(const_vertex_iterator beg,
-                                                const_vertex_iterator end) {
+template <typename ValueT, typename WeightT, typename Compare,
+          typename Allocator>
+typename Digraph<ValueT, WeightT, Compare, Allocator>::vertex_iterator
+Digraph<ValueT, WeightT, Compare, Allocator>::erase_vertex(
+    const_vertex_iterator beg, const_vertex_iterator end) {
     typename set_type::const_iterator &beg_iter = beg;
     typename set_type::const_iterator &end_iter = end;
     std::unordered_set<index_t> indices;
@@ -307,9 +321,10 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const_vertex_iterator beg,
     }
     return result;
 }
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::size_type
-Digraph<ValueT, WeightT, Compare>::erase_vertex(const ValueT &key) {
+template <typename ValueT, typename WeightT, typename Compare,
+          typename Allocator>
+typename Digraph<ValueT, WeightT, Compare, Allocator>::size_type
+Digraph<ValueT, WeightT, Compare, Allocator>::erase_vertex(const ValueT &key) {
     std::unordered_set<index_t> indices;
     for (auto iter = vertices.cbegin(); iter != vertices.cend(); ++iter) {
         if (iter->value() == key)
@@ -332,10 +347,11 @@ Digraph<ValueT, WeightT, Compare>::erase_vertex(const ValueT &key) {
     }
     return indices.size();
 }
-template <typename ValueT, typename WeightT, typename Compare>
-void Digraph<ValueT, WeightT, Compare>::insert_edge(const_vertex_iterator tail,
-                                                    const_vertex_iterator head,
-                                                    const WeightT &weight) {
+template <typename ValueT, typename WeightT, typename Compare,
+          typename Allocator>
+void Digraph<ValueT, WeightT, Compare, Allocator>::insert_edge(
+    const_vertex_iterator tail, const_vertex_iterator head,
+    const WeightT &weight) {
     typename set_type::const_iterator &ctail_iter = tail;
     typename set_type::const_iterator &head_iter = head;
     auto tail_iter = iter_remove_c(ctail_iter);
@@ -344,21 +360,23 @@ void Digraph<ValueT, WeightT, Compare>::insert_edge(const_vertex_iterator tail,
         {.weight = weight, .head = vertices.get_index(head_iter)});
 }
 
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::edge_iterator
-Digraph<ValueT, WeightT, Compare>::erase_after_edge(const_vertex_iterator tail,
-                                                    const_edge_iterator edge) {
+template <typename ValueT, typename WeightT, typename Compare,
+          typename Allocator>
+typename Digraph<ValueT, WeightT, Compare, Allocator>::edge_iterator
+Digraph<ValueT, WeightT, Compare, Allocator>::erase_after_edge(
+    const_vertex_iterator tail, const_edge_iterator edge) {
     typename set_type::const_iterator &ctail_iter = tail;
     auto tail_iter = iter_remove_c(ctail_iter);
 
     auto result = tail_iter->edges.erase_after(edge);
     return result;
 }
-template <typename ValueT, typename WeightT, typename Compare>
-typename Digraph<ValueT, WeightT, Compare>::edge_iterator
-Digraph<ValueT, WeightT, Compare>::erase_after_edge(const_vertex_iterator tail,
-                                                    const_edge_iterator beg,
-                                                    const_edge_iterator end) {
+template <typename ValueT, typename WeightT, typename Compare,
+          typename Allocator>
+typename Digraph<ValueT, WeightT, Compare, Allocator>::edge_iterator
+Digraph<ValueT, WeightT, Compare, Allocator>::erase_after_edge(
+    const_vertex_iterator tail, const_edge_iterator beg,
+    const_edge_iterator end) {
     typename set_type::const_iterator &ctail_iter = tail;
     auto tail_iter = iter_remove_c(ctail_iter);
 
@@ -367,9 +385,10 @@ Digraph<ValueT, WeightT, Compare>::erase_after_edge(const_vertex_iterator tail,
     return result;
 }
 
-template <typename ValueT, typename WeightT, typename Compare>
-typename UndirectedGraph<ValueT, WeightT, Compare>::edge_iterator
-UndirectedGraph<ValueT, WeightT, Compare>::erase_after_edge(
+template <typename ValueT, typename WeightT, typename Compare,
+          typename Allocator>
+typename UndirectedGraph<ValueT, WeightT, Compare, Allocator>::edge_iterator
+UndirectedGraph<ValueT, WeightT, Compare, Allocator>::erase_after_edge(
     const_vertex_iterator v1, const_edge_iterator edge) {
     auto target = edge;
     ++target;

@@ -38,3 +38,8 @@ set(sub_dirs graph)
 foreach(dir ${sub_dirs})
     add_subdirectory(${dir})
 endforeach(dir ${sub_dirs})
+
+find_package(Eigen3 REQUIRED NO_MODULE)
+
+add_executable(main main.cxx)
+target_link_libraries(main Eigen3::Eigen)
