@@ -1,3 +1,5 @@
+#ifndef GPSOINN_GPSOINN_HXX
+#define GPSOINN_GPSOINN_HXX
 #include "graph/graph.hxx"
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
@@ -285,3 +287,4 @@ template <unsigned dimension> float GPNet<dimension>::predict(array &data) {
     return prob;
 }
 } // namespace GPSOINN
+#endif // GPSOINN_GPSOINN_HXX
