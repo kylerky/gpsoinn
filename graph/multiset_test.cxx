@@ -1,5 +1,5 @@
 #include "multiset.hxx"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include <iostream>
 #include <random>
 #include <unordered_set>
@@ -28,6 +28,12 @@ TEST(iterator, value_init) {
     multiset<int>::const_iterator citer2;
     ASSERT_EQ(iter1, iter2);
     ASSERT_EQ(citer1, citer2);
+}
+
+TEST_F(SequenceSet, op) {
+    for (int i = 0; i != SEQ_ELEM_CNT; ++i) {
+        ASSERT_EQ(i, set[i]);
+    }
 }
 
 TEST_F(SequenceSet, iter_increment) {
@@ -82,8 +88,11 @@ TEST(erase, random) {
 
         int index = 0;
         for (auto iter = set.cbegin(); iter != set.cend(); ++iter) {
-            while (drops.count(index) == 1)
+            while (drops.count(index) == 1) {
+                EXPECT_EQ(set.valid(index), false);
                 ++index;
+            }
+            EXPECT_EQ(set.valid(index), true);
             EXPECT_EQ(*iter, index) << "seed: " << seed << "\nat try " << i;
             ++index;
         }

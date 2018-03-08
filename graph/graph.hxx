@@ -2,6 +2,7 @@
 #define GPSOINN_GRAPH_HXX
 
 #include "multiset.hxx"
+
 #include <algorithm>
 #include <forward_list>
 #include <functional>
@@ -27,6 +28,7 @@ class Digraph {
         WeightT weight;
         index_t head;
     };
+
     typedef typename std::forward_list<EdgeNode>::iterator edge_iterator;
     typedef typename std::forward_list<EdgeNode>::const_iterator
         const_edge_iterator;
@@ -142,10 +144,9 @@ class Digraph {
     const_vertex_iterator get_vertex_iterator(index_t index) const {
         return vertices.get_iterator(index);
     }
-    Vertex &operator[](index_t index) { return *get_vertex_iterator(index); }
-    const Vertex &operator[](index_t index) const {
-        return *get_vertex_iterator(index);
-    }
+    Vertex &operator[](index_t index) { return vertices[index]; }
+    const Vertex &operator[](index_t index) const { return vertices[index]; }
+    bool valid(index_t index) const { return vertices.valid(index); }
 
     //
     void clear() noexcept { vertices.clear(); }
@@ -160,14 +161,14 @@ class Digraph {
   private:
     inline typename set_type::iterator
     iter_remove_c(typename set_type::const_iterator citer) {
-        index_t tail_pos = vertices.get_index(citer);
+        index_t tail_pos = citer.index();
         return vertices.get_iterator(tail_pos);
     }
 };
 template <typename ValueT, typename WeightT,
           typename Compare = std::less<ValueT>,
           typename Allocator = std::allocator<ValueT>>
-class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare, Allocator> {
+class UndirectedGraph : public Digraph<ValueT, WeightT, Compare, Allocator> {
   private:
     using Digraph = Digraph<ValueT, WeightT, Compare, Allocator>;
 
@@ -193,7 +194,7 @@ class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare, Allocator> {
     UndirectedGraph(UndirectedGraph &&other) = default;
 
     // destructors
-    ~UndirectedGraph() {}
+    virtual ~UndirectedGraph() {}
 
     // swap
     friend void swap(UndirectedGraph &left, UndirectedGraph &right) noexcept {
@@ -261,6 +262,7 @@ class UndirectedGraph : protected Digraph<ValueT, WeightT, Compare, Allocator> {
     typename Digraph::Vertex const &operator[](index_t index) const {
         return Digraph::operator[](index);
     }
+    bool valid(index_t index) const { return Digraph::valid(index); }
 
     //
     void clear() noexcept { Digraph::clear(); }
@@ -280,7 +282,7 @@ typename Digraph<ValueT, WeightT, Compare, Allocator>::vertex_iterator
 Digraph<ValueT, WeightT, Compare, Allocator>::erase_vertex(
     const_vertex_iterator pos) {
     typename set_type::const_iterator &iter = pos;
-    auto index = vertices.get_index(iter);
+    auto index = iter.index();
     auto result = vertices.erase(iter);
     for (auto &vertex : vertices) {
         auto pre = vertex.edges.cbefore_begin();
@@ -305,7 +307,7 @@ Digraph<ValueT, WeightT, Compare, Allocator>::erase_vertex(
     typename set_type::const_iterator &end_iter = end;
     std::unordered_set<index_t> indices;
     for (auto iter = beg_iter; iter != end_iter; ++iter) {
-        indices.insert(vertices.get_index(iter));
+        indices.insert(iter.index());
     }
     auto result = vertices.erase(beg_iter, end_iter);
     for (auto &vertex : vertices) {
@@ -328,7 +330,7 @@ Digraph<ValueT, WeightT, Compare, Allocator>::erase_vertex(const ValueT &key) {
     std::unordered_set<index_t> indices;
     for (auto iter = vertices.cbegin(); iter != vertices.cend(); ++iter) {
         if (iter->value() == key)
-            indices.insert(vertices.get_index(iter));
+            indices.insert(iter.index());
     }
 
     for (auto index : indices)
@@ -356,8 +358,7 @@ void Digraph<ValueT, WeightT, Compare, Allocator>::insert_edge(
     typename set_type::const_iterator &head_iter = head;
     auto tail_iter = iter_remove_c(ctail_iter);
 
-    tail_iter->edges.push_front(
-        {.weight = weight, .head = vertices.get_index(head_iter)});
+    tail_iter->edges.push_front({.weight = weight, .head = head_iter.index()});
 }
 
 template <typename ValueT, typename WeightT, typename Compare,
@@ -396,7 +397,7 @@ UndirectedGraph<ValueT, WeightT, Compare, Allocator>::erase_after_edge(
     auto result = Digraph::erase_after_edge(v1, edge);
     auto v2 = get_vertex_iterator(target->head);
     if (v1 != v2) {
-        index_t index = get_index(v1);
+        index_t index = v1.index();
         for (auto iter = v2->cbegin(), pre = v2->cbefore_begin();
              iter != v2->cend(); ++iter, ++pre) {
             if (iter->head == index && iter->weight == target->weight) {
